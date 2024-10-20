@@ -14,7 +14,7 @@ class Window(tk.Tk):
         message.pack()
         style.configure('Main.TButton', font= ('Arial',15))
         btn1 = ttk.Button(self, text = "Button Demo")
-        btn1.pack(ipadx= 50, ipady= 30, padx= 50, pady= 50) 
+        btn1.pack(ipadx= 10, ipady= 50, padx= 110, pady= 50) 
         #ipadx 盒內距, i= internal, x為水平, y為垂直
         #padx 盒外距, x為水平, y為垂直
 

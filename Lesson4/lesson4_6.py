@@ -6,6 +6,8 @@ class Window(ThemedTk):
         super().__init__(*args,**kwargs)
         self.title('使用ttk的套件')
         style = ttk.Style(self)        
+        # topFrame = ttk.Frame(self,width=300, height=100,borderwidth=1,relief='groove')
+        # 因topFrame擺了btn1後就會被內容物決定寬高,故width/height已無用
         topFrame = ttk.Frame(self,borderwidth=1,relief='groove')
         btn1 = ttk.Button(topFrame,text="按鈕1")
         btn1.pack(side='left',expand=True,fill='x',padx=10)
