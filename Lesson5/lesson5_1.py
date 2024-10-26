@@ -4,21 +4,21 @@ from ttkthemes import ThemedTk
 from tkinter.messagebox import showinfo
 
 class Window(ThemedTk):
-    def __init__(self, *args, **kwargs):
+    def __init__(self,*args, **kwargs):
         super().__init__(*args, **kwargs)
         self.title('登入')
-        # ===============style===========
+        #==============style===============
         style = ttk.Style(self)
-        style.configure('TopFrame.TLabel', font=('Calibri',20))
-        # ===============style===========
-
-        #================topFrame========
+        style.configure('TopFrame.TLabel',font=('Helvetica',20))
+        #============end style===============
+        
+        #==============top Frame===============
 
         topFrame = ttk.Frame(self)
-        ttk.Label(topFrame,text='個人資訊輸入', style='TopFrame.TLabel').pack()
-        topFrame.pack(padx=20, pady=20)
-
-        #================topFrame=======
+        ttk.Label(topFrame,text='個人資訊輸入',style='TopFrame.TLabel').pack()
+        topFrame.pack(padx=20,pady=20)
+        
+        #==============end topFrame===============
 
         #==============bottomFrame===============
         bottomFrame = ttk.Frame(self)
@@ -32,14 +32,14 @@ class Window(ThemedTk):
         ttk.Label(bottomFrame,text='Password:').grid(row=1,column=0,sticky='E')
 
         self.password = tk.StringVar()
-        ttk.Entry(bottomFrame,textvariable=self.password).grid(column=1, row=1,pady=10,padx=10)
-        
+        ttk.Entry(bottomFrame,textvariable=self.password,show='*').grid(column=1, row=1,pady=10,padx=10)
+
         
 
-        cancel_btn = ttk.Button(bottomFrame,text='取消')
+        cancel_btn = ttk.Button(bottomFrame,text='取消',command=self.cancel_click)
         cancel_btn.grid(column=0,row=2,padx=10,pady=(30,0))
 
-        ok_btn = ttk.Button(bottomFrame,text='確定')
+        ok_btn = ttk.Button(bottomFrame,text='確定',command=self.ok_click)
         ok_btn.grid(column=1, row=2,padx=10,pady=(30,0),sticky='E')
         bottomFrame.pack(expand=True,fill='x',padx=20,pady=(0,20),ipadx=10,ipady=10)
         #==============end bottomFrame===============
@@ -56,8 +56,8 @@ class Window(ThemedTk):
 
 def main():
     window = Window(theme="arc")
-    # window.username.set('這裏放姓名')
-    # window.password.set('這裏打password')
+    #window.username.set('這裏放姓名')
+    #window.password.set('這裏打password')
     window.mainloop()
 
 if __name__ == '__main__':
