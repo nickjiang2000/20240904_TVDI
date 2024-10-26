@@ -21,6 +21,7 @@ class Window(ThemedTk):
         #==============end topFrame===============
 
         #==============bottomFrame===============
+        # https://www.pythontutorial.net/tkinter/tkinter-checkbox/
         bottomFrame = ttk.Frame(self)
         self.agreement = tk.StringVar()
         
