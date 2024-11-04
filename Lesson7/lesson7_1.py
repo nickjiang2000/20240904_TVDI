@@ -26,18 +26,23 @@ class Window(ThemedTk):
         #==============bottomFrame===============
         bottomFrame = ttk.Frame(self)
             #==============SelectedFrame===============        
-        selectedFrame= ttk.Frame(self,padding=[10,10,10,10])
+        self.selectedFrame= ttk.Frame(self,padding=[10,10,10,10])
         #combobox選擇城市      
         counties = datasource.get_county()
         #self.selected_site = tk.StringVar()
         self.selected_county = tk.StringVar()
-        sitenames_cb = ttk.Combobox(selectedFrame, textvariable=self.selected_county,values=counties,state='readonly')
+        sitenames_cb = ttk.Combobox(self.selectedFrame, textvariable=self.selected_county,values=counties,state='readonly')
         self.selected_county.set('請選擇城市')
         sitenames_cb.bind('<<ComboboxSelected>>', self.county_selected)
-        sitenames_cb.pack(expand=True,anchor='n') 
+        sitenames_cb.pack(anchor='n',pady=10)
+
+        self.listbox = None 
+        
+        
 
 
-        selectedFrame.pack(side='left',expand=True,fill='y',padx=(20,0))
+
+        self.selectedFrame.pack(side='left',expand=True,fill='y',padx=(20,0))
             #==============End SelectedFrame=============== 
     
         
@@ -80,7 +85,18 @@ class Window(ThemedTk):
         
     def county_selected(self,event):
         selected = self.selected_county.get()
-        print(selected)
+        counties = datasource.get_sitename(county=selected)
+        #listbox選擇站點
+        if self.listbox:
+            self.listbox.destroy()
+        var = tk.Variable(value=counties)
+        self.listbox = tk.Listbox(
+                    self.selectedFrame,
+                    listvariable=var,
+                    height=6,
+                    selectmode=tk.EXTENDED
+                )
+        self.listbox.pack()
 
 
     def sitename_selected(self,event):
@@ -92,6 +108,16 @@ class Window(ThemedTk):
             self.tree.insert("", "end", values=record)
 
     
+        
+ 
+
+def main():
+    datasource.download_data() #下載至資料庫
+    window = Window(theme="arc")
+    window.mainloop()
+
+if __name__ == '__main__':
+    main()
         
  
 
