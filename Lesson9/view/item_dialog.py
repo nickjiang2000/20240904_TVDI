@@ -15,7 +15,12 @@ class MyCustomDialog(Dialog):
 
     def body(self, master):
         # 創建對話框主體。返回應具有初始焦點的控件。
-        pass
+        main_frame = ttk.Frame(master,borderwidth=1,relief='groove')
+        ttk.Label(main_frame,text=self.status).pack()
+        canvas = tk.Canvas(main_frame,width=400,height=400)
+        canvas.create_oval(10, 10, 80, 80, outline="#f11",fill="#1f1", width=2)
+        canvas.pack()
+        main_frame.pack(expand=True,fill='x')
 
     def apply(self):
         # 當用戶按下確定時處理數據
