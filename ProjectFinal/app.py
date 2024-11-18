@@ -4,7 +4,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime
 import time
-# import pandas as pd
+import pandas as pd
 from data_loader import DataLoader
 from data_processor import DataProcessor
 from plotter import Plotter
