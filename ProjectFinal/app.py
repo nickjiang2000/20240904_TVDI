@@ -1,0 +1,67 @@
+import tkinter as tk
+from tkinter import ttk
+from data_loader import load_data
+from data_processor import process_daily_data
+from plotter import plot_data
+
+class StockApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("國內外投信股票買賣查詢系統")
+
+        # Left Navigation
+        self.nav_frame = tk.Frame(root)
+        self.nav_frame.pack(side="left", fill="y", padx=10, pady=10)
+
+        self.stock_label = tk.Label(self.nav_frame, text="選擇股票")
+        self.stock_label.pack(anchor="w")
+
+        self.stock_combobox = ttk.Combobox(self.nav_frame, state="readonly")
+        self.stock_combobox.pack(fill="x")
+        self.stock_combobox.bind("<<ComboboxSelected>>", self.display_data)
+
+        # Right Display Area
+        self.display_frame = tk.Frame(root)
+        self.display_frame.pack(side="right", fill="both", expand=True)
+
+        # Table
+        self.table_frame = tk.Frame(self.display_frame)
+        self.table_frame.pack(side="top", fill="x", padx=10, pady=10)
+
+        self.table = ttk.Treeview(self.table_frame, columns=["Date", "All Investors", "Foreign Agency", "Agency"])
+        self.table.heading("#0", text="Date")
+        self.table.heading("All Investors", text="所有投資人")
+        self.table.heading("Foreign Agency", text="外資投信")
+        self.table.heading("Agency", text="投信")
+        self.table.pack(fill="x")
+
+        # Plot
+        self.plot_frame = tk.Frame(self.display_frame)
+        self.plot_frame.pack(side="bottom", fill="both", expand=True)
+
+        self.canvas = None  # Placeholder for the plot
+
+        # Load Data
+        self.data = load_data()
+        self.stock_combobox["values"] = list(self.data["all_trading"].columns)
+        self.stock_combobox.set("2330 台積電")
+
+    def display_data(self, event=None):
+        stock = self.stock_combobox.get()
+        table_data, plot_data = process_daily_data(self.data, stock)
+
+        # Update table
+        for row in self.table.get_children():
+            self.table.delete(row)
+        for row in table_data:
+            self.table.insert("", "end", text=row[0], values=row[1:])
+
+        # Update plot
+        if self.canvas:
+            self.canvas.get_tk_widget().destroy()
+        self.canvas = plot_data(self.plot_frame, plot_data)
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = StockApp(root)
+    root.mainloop()
