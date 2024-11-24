@@ -3,6 +3,7 @@ from tkinter import ttk
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.ticker import MaxNLocator  # 引入 MaxNLocator
 
 DATA_PATH = "./data/"
 
@@ -27,13 +28,19 @@ class StockApp:
         # Table Area
         self.table_frame = tk.Frame(self.display_frame)
         self.table_frame.pack(side="top", fill="x", padx=10, pady=5)
-        tk.Label(self.table_frame, text="當日買賣股數", font=("Arial", 14)).pack(anchor="w")
+        tk.Label(self.table_frame, text="當月買賣股數", font=("Arial", 14)).pack(anchor="w")
 
+        # Scrollable Treeview
+        self.scrollbar = ttk.Scrollbar(self.table_frame, orient="vertical")
+        self.scrollbar.pack(side="right", fill="y")
         self.table = ttk.Treeview(
             self.table_frame,
             columns=["Month", "All Investors", "Foreign Agency", "Agency"],
             show="headings",
+            yscrollcommand=self.scrollbar.set,
         )
+        self.scrollbar.config(command=self.table.yview)
+
         for col, name in zip(
             ["Month", "All Investors", "Foreign Agency", "Agency"],
             ["Month", "All Investors", "Foreign Agency", "Domestic Agency"],
@@ -76,6 +83,9 @@ class StockApp:
         # Resample by month and sum
         monthly_data = monthly_data.resample("ME").sum()
 
+        # Sort by newest date
+        monthly_data = monthly_data.sort_index(ascending=False)
+
         # Format month and numeric data
         monthly_data.index = monthly_data.index.strftime("%Y-%m")  # Format index as "YYYY-MM"
         monthly_data = monthly_data.round().astype(int)  # Round to integers
@@ -89,6 +99,9 @@ class StockApp:
         """
         Plot stock transactions trend
         """
+        # 確保數據按照年月升序排列
+        data = data.sort_index()
+
         fig, ax = plt.subplots(figsize=(10, 5))
 
         ax.plot(data.index, data["All Investors"].str.replace(",", "").astype(int), label="All Investors", marker="o")
@@ -100,6 +113,10 @@ class StockApp:
         ax.set_ylabel("Transaction Volume", fontsize=12)
         ax.legend(fontsize=10)
         ax.grid(True)
+
+        # 設定 X 軸顯示的標籤間距和旋轉
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True, prune="both", nbins=20))  # 限制最多顯示 20 個標籤
+        plt.xticks(rotation=45)  # 旋轉 X 軸標籤以避免重疊
 
         if self.canvas:
             self.canvas.get_tk_widget().destroy()
