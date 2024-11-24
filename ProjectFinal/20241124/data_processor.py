@@ -25,4 +25,3 @@ def process_daily_data(data, stock):
     table_data["Agency"] = table_data["Agency"].apply(lambda x: f"{int(x):,}")
 
     return table_data.values.tolist(), table_data
-
