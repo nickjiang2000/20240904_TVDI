@@ -5,9 +5,12 @@ df = pd.read_csv('https://raw.githubusercontent.com/plotly/datasets/master/gapmi
 
 app = Dash(__name__)
 
-app.layout = [
-    html.H1("Dash App的標題",style={"textAlign":'center'})
-]
+app.layout = html.Div(
+    [
+    html.H1("Dash App的標題",style={"textAlign":'center'}),
+    dcc.Dropdown(df.country.unique(),value='Taiwan',id='dropdown-selection')
+    ])
+    
 
 if __name__ == '__main__':
     app.run(debug=True)
