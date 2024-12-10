@@ -1,19 +1,26 @@
-from dash import Dash,html,dcc,callback,Input, Output,dash_table
+from dash import Dash,html,dcc,callback,Input, Output,dash_table,_dash_renderer
 import pandas as pd
 import plotly.express as px
+import dash_mantine_components as dmc
+_dash_renderer._set_react_version("18.2.0")
 
 df = pd.read_csv('https://raw.githubusercontent.com/plotly/datasets/master/gapminder_unfiltered.csv')
 
-app = Dash(__name__)
+app = Dash(__name__,external_stylesheets=dmc.styles.ALL)
 
-app.layout = html.Div(
+app.layout = dmc.MantineProvider(
     [
-    html.H1("Dash App的標題",style={"textAlign":'center'}),
-    dcc.RadioItems(['pop','lifeExp','gdpPercap'],value='pop',inline=True,id='radio_item'),
-    dcc.Dropdown(df.country.unique(),value='Taiwan',id='dropdown-selection'),
-    dash_table.DataTable(data=[],page_size=10,id='datatable',columns=[]),
+    html.H1("Dash App的標題",style={"textAlign":'center'})
+    ,
+    dcc.RadioItems(['pop','lifeExp','gdpPercap'],value='pop',inline=True,id='radio_item')
+    ,
+    dcc.Dropdown(df.country.unique(),value='Taiwan',id='dropdown-selection')
+    ,
+    dash_table.DataTable(data=[],page_size=10,id='datatable',columns=[])
+    ,
     dcc.Graph(id='graph-content')
-    ])
+    ]
+)
 
 #圖表顯示的事件
 @callback(    
