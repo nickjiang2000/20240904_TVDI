@@ -1,3 +1,7 @@
+# ChatGPT 協作的版本，改自能及時從FinLab API下載的stock3.py（由Tom開發）
+# 有解決日期顯示問題；已整合進階功能分析"主力買超比例"至主頁、刪除原顯示之買賣超資訊比較圖表；
+# 尚未整合進階功能分析"顯示主力買超前15名"
+
 from dotenv import load_dotenv
 import dash
 from dash import dcc, html, Input, Output, State, dash_table
