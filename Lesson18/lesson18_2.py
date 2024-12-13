@@ -14,6 +14,12 @@ radio_data = [['pop','人口'],['lifeExp','平均壽命'],['gdpPercap','人均gd
 #selected要的資料
 selected_data = [{'value':value,'label':value} for value in df.country.unique()]
 
+#linechart要的資料
+# 
+dff = df[df.country == 'Taiwan']
+pop_diff = dff[['country', 'year', 'pop']]
+line_chart_data = pop_diff.to_dict('records')
+
 app.layout = dmc.MantineProvider(
     [
     
@@ -69,34 +75,48 @@ app.layout = dmc.MantineProvider(
             direction={"base": "column", "sm": "row"},
             gap={"base": "sm", "sm": "lg"},
             justify={"base": "center"},
-            
-
         )
     ,
-    #dcc.Graph(id='graph-content')
+        #dcc.Graph(id='graph-content')
+        # dmc.Container(
+        #    dcc.Graph(id='graph-content') 
+        # )
+     
         dmc.Container(
-           dcc.Graph(id='graph-content') 
+           dmc.LineChart(
+            h=300,
+            dataKey="year",
+            data=line_chart_data,
+            series = [
+                {"name": "pop", "color": "indigo.6"}
+            ],
+            curveType="linear",
+            tickLine="xy",
+            withXAxis=False,
+            withDots=False,
+            ),
+            my=50
         )
+        
     ]
 )
 
 #圖表顯示的事件
-@callback(    
-    Output('graph-content','figure'),
-    Input('dropdown-selection','value'),
-    Input('radio_item','value')
-    
-)
-def update_graph(country_value,radio_value):
-    dff = df[df.country == country_value]
-    if radio_value == "pop":
-        title = f'{country_value}:人口成長圖表'
-    elif radio_value == "lifeExp":
-        title = f'{country_value}:預期壽命'
-    elif radio_value == 'gdpPercap':
-        title = f'{country_value}:人均GDP'
+# @callback(    
+#     Output('graph-content','figure'),
+#     Input('dropdown-selection','value'),
+#     Input('radio_item','value')
+# )
+# def update_graph(country_value,radio_value):
+#     dff = df[df.country == country_value]
+#     if radio_value == "pop":
+#         title = f'{country_value}:人口成長圖表'
+#     elif radio_value == "lifeExp":
+#         title = f'{country_value}:預期壽命'
+#     elif radio_value == 'gdpPercap':
+#         title = f'{country_value}:人均GDP'
 
-    return px.line(dff,x='year',y=radio_value,title=title)
+#     return px.line(dff,x='year',y=radio_value,title=title)
 
 #表格顯示的事件
 @callback(    
