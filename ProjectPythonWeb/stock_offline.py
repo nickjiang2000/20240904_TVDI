@@ -1,3 +1,6 @@
+# Perplexity 協作的版本，改自離線版本的stock2.py，從csv取得數據（由Nick開發）
+# 未解決日期顯示問題；能產出進階功能分析"主力買超比例"、"顯示主力買超前15名"
+
 import dash
 from dash import dcc, html, dash_table
 from dash.dependencies import Input, Output

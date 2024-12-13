@@ -1,3 +1,6 @@
+# Perplexity 協作的版本，改自能及時從FinLab API下載的stock3.py（由Tom開發）
+# 未解決日期顯示問題；能產出進階功能分析"主力買超比例"、"顯示主力買超前15名"
+
 import dash
 from dash import dcc, html, dash_table
 from dash.dependencies import Input, Output, State
