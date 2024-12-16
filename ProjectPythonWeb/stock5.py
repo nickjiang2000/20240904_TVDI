@@ -1,7 +1,7 @@
 # ChatGPT 協作的版本，改自能及時從FinLab API下載的stock3.py（由Tom開發）
 # 有解決日期顯示問題；已整合進階功能分析"主力買超比例"至主頁、刪除原顯示之買賣超資訊比較圖表；
 # 已整合進階功能分析"顯示主力買超前15名"
-# 後續可考慮微調版面配置；尚須整合入WSGU套件，佈署上雲
+# 整合修改佈署上雲
 
 from dotenv import load_dotenv
 import dash
@@ -17,7 +17,8 @@ import os
 os.system('cls')
 load_dotenv()
 finlab.login(os.getenv('FINLAB_API_KEY'))
-data.set_storage(data.FileStorage(path="D:\pickle"))
+data.set_storage(data.FileStorage(path="/mnt/data/pickle"))
+
 
 # Global variables
 close_price = pd.DataFrame()
@@ -250,4 +251,5 @@ def display_stock_data(stock_code):
         return [], go.Figure()
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run_server(debug=True, host="0.0.0.0", port=int(os.getenv("PORT", 8050)))
+
