@@ -18,19 +18,17 @@ os.system('cls')
 load_dotenv()
 finlab.login(os.getenv('FINLAB_API_KEY'))
 
-# Use a temporary path for Render's environment
+# Set dynamic storage path (Render-compatible)
 storage_path = "/tmp/pickle"
-os.makedirs(storage_path, exist_ok=True)  # Create the directory if it doesn't exist
+os.makedirs(storage_path, exist_ok=True)  # Ensure the directory exists
 data.set_storage(data.FileStorage(path=storage_path))
 
-
 # Global variables
-close_price = pd.DataFrame()
 end_date = datetime.now()
 start_date = end_date - timedelta(days=365)
 
 # Load data using finlab API
-def load_data():
+def load_data(start_date=None, end_date=None):
     try:
         foreign = data.get(
             'institutional_investors_trading_summary:外陸資買賣超股數(不含外資自營商)')
@@ -41,20 +39,25 @@ def load_data():
         dealer = data.get(
             'institutional_investors_trading_summary:自營商買賣超股數(自行買賣)')
 
+        # Filter by date range if provided
+        if start_date and end_date:
+            foreign = foreign.loc[start_date:end_date]
+            foreign_dealer = foreign_dealer.loc[start_date:end_date]
+            investment_trust = investment_trust.loc[start_date:end_date]
+            dealer = dealer.loc[start_date:end_date]
+
         foreign_total = foreign.fillna(0) + foreign_dealer.fillna(0)
-        global close_price
-        close_price = data.get("price:收盤價")
+        close_price = data.get("price:收盤價").loc[start_date:end_date]
 
         return {
             "foreign_trading": foreign_total,
             "investment_trust_trading": investment_trust.fillna(0),
-            "dealer_trading": dealer.fillna(0)
+            "dealer_trading": dealer.fillna(0),
+            "close_price": close_price
         }
     except Exception as e:
         print(f"Error loading data: {e}")
         return {}
-
-data_dict = load_data()
 
 # Load stock list from Excel
 def get_stock_list_from_excel():
@@ -165,6 +168,7 @@ def get_top_15_data(pathname):
         for stock in stock_list:
             stock_code = stock.split()[0]
             try:
+                data_dict = load_data(start_date, end_date)  # Dynamically load data
                 foreign = data_dict["foreign_trading"][stock_code].tail(20).sum()
                 trust = data_dict["investment_trust_trading"][stock_code].tail(20).sum()
                 dealer = data_dict["dealer_trading"][stock_code].tail(20).sum()
@@ -202,9 +206,6 @@ def get_top_15_data(pathname):
     except Exception as e:
         print(f"Error fetching top 15 data: {e}")
         return []
-
-
-
 
 # Callback to display main page data
 @app.callback(
