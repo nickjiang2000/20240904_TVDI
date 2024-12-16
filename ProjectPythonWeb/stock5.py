@@ -17,7 +17,11 @@ import os
 os.system('cls')
 load_dotenv()
 finlab.login(os.getenv('FINLAB_API_KEY'))
-data.set_storage(data.FileStorage(path="/mnt/data/pickle"))
+
+# Use a temporary path for Render's environment
+storage_path = "/tmp/pickle"
+os.makedirs(storage_path, exist_ok=True)  # Create the directory if it doesn't exist
+data.set_storage(data.FileStorage(path=storage_path))
 
 
 # Global variables
