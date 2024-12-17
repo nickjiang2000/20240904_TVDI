@@ -1,7 +1,8 @@
 # 改自能及時從FinLab API下載的stock3.py（由Tom開發）
 # 有解決日期顯示問題；已整合進階功能分析"主力買超比例"至主頁、刪除原顯示之買賣超資訊比較圖表；
 # 已整合進階功能分析"顯示主力買超前15名"
-# 後續可考慮微調版面配置；尚須整合入WSGU套件，佈署上雲
+# 已將資料下載一年改為三個月，便於佈署上雲
+# 後續可考慮微調版面配置；
 
 from dotenv import load_dotenv
 import dash
@@ -12,44 +13,86 @@ from datetime import datetime, timedelta
 import finlab
 from finlab import data
 import os
+import gzip
+import shutil
 
 # Initialize environment
 os.system('cls')
 load_dotenv()
 finlab.login(os.getenv('FINLAB_API_KEY'))
-data.set_storage(data.FileStorage(path="D:\pickle"))
 
-# Global variables
-close_price = pd.DataFrame()
-end_date = datetime.now()
-start_date = end_date - timedelta(days=365)
+# Set dynamic storage path
+storage_path = "D:\\pickle"
+os.makedirs(storage_path, exist_ok=True)  # Ensure the directory exists
+data.set_storage(data.FileStorage(path=storage_path))
 
-# Load data using finlab API
-def load_data():
+# Compress pickle files to reduce space
+def compress_pickle_files(directory):
     try:
-        foreign = data.get(
-            'institutional_investors_trading_summary:外陸資買賣超股數(不含外資自營商)')
-        foreign_dealer = data.get(
-            'institutional_investors_trading_summary:外資自營商買賣超股數')
-        investment_trust = data.get(
-            'institutional_investors_trading_summary:投信買賣超股數')
-        dealer = data.get(
-            'institutional_investors_trading_summary:自營商買賣超股數(自行買賣)')
+        for filename in os.listdir(directory):
+            if filename.endswith(".pkl"):
+                file_path = os.path.join(directory, filename)
+                compressed_path = file_path + ".gz"
+
+                # Skip if already compressed
+                if os.path.exists(compressed_path):
+                    continue
+
+                with open(file_path, "rb") as f_in:
+                    with gzip.open(compressed_path, "wb") as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                
+                # Remove the original file after compression
+                os.remove(file_path)
+        print(f"Pickle files compressed in {directory}")
+    except Exception as e:
+        print(f"Error during compression: {e}")
+
+# Automatically clean up old compressed files
+def clean_old_compressed_files(directory, days=7):
+    try:
+        now = datetime.now()
+        for filename in os.listdir(directory):
+            if filename.endswith(".gz"):
+                file_path = os.path.join(directory, filename)
+                file_time = datetime.fromtimestamp(os.path.getmtime(file_path))
+
+                # Delete files older than the threshold
+                if (now - file_time).days > days:
+                    os.remove(file_path)
+        print(f"Old compressed files cleaned in {directory}")
+    except Exception as e:
+        print(f"Error during cleanup: {e}")
+
+# Load data using finlab API with limited time range
+def load_data(start_date=None, end_date=None):
+    try:
+        # Limit to the last 90 days to reduce data size
+        end_date = datetime.now() if end_date is None else end_date
+        start_date = end_date - timedelta(days=90) if start_date is None else start_date
+
+        foreign = data.get('institutional_investors_trading_summary:外陸資買賣超股數(不含外資自營商)').loc[start_date:end_date]
+        foreign_dealer = data.get('institutional_investors_trading_summary:外資自營商買賣超股數').loc[start_date:end_date]
+        investment_trust = data.get('institutional_investors_trading_summary:投信買賣超股數').loc[start_date:end_date]
+        dealer = data.get('institutional_investors_trading_summary:自營商買賣超股數(自行買賣)').loc[start_date:end_date]
 
         foreign_total = foreign.fillna(0) + foreign_dealer.fillna(0)
-        global close_price
-        close_price = data.get("price:收盤價")
+        close_price = data.get("price:收盤價").loc[start_date:end_date]
 
+        print("Data successfully loaded for the last 90 days.")
         return {
             "foreign_trading": foreign_total,
             "investment_trust_trading": investment_trust.fillna(0),
-            "dealer_trading": dealer.fillna(0)
+            "dealer_trading": dealer.fillna(0),
+            "close_price": close_price
         }
     except Exception as e:
         print(f"Error loading data: {e}")
         return {}
 
-data_dict = load_data()
+# Call compression and cleanup functions
+compress_pickle_files(storage_path)
+clean_old_compressed_files(storage_path)
 
 # Load stock list from Excel
 def get_stock_list_from_excel():
@@ -156,13 +199,14 @@ def get_top_15_data(pathname):
 
     try:
         all_stocks_data = []
+        data_dict = load_data()  # Dynamically load data with limited date range
 
         for stock in stock_list:
             stock_code = stock.split()[0]
             try:
-                foreign = data_dict["foreign_trading"][stock_code].tail(20).sum()
-                trust = data_dict["investment_trust_trading"][stock_code].tail(20).sum()
-                dealer = data_dict["dealer_trading"][stock_code].tail(20).sum()
+                foreign = data_dict["foreign_trading"].get(stock_code, pd.Series()).tail(20).sum()
+                trust = data_dict["investment_trust_trading"].get(stock_code, pd.Series()).tail(20).sum()
+                dealer = data_dict["dealer_trading"].get(stock_code, pd.Series()).tail(20).sum()
 
                 all_stocks_data.append({
                     "Stock": stock_code,
@@ -171,35 +215,28 @@ def get_top_15_data(pathname):
                     "Dealer": dealer,
                     "Total": foreign + trust + dealer
                 })
-
-            except Exception:
+            except Exception as e:
+                print(f"Error processing stock {stock_code}: {e}")
                 continue
 
-        # 转换为 DataFrame 并去重股票代码
+        # Convert to DataFrame and deduplicate
         all_stocks_data_df = pd.DataFrame(all_stocks_data)
 
         if all_stocks_data_df.empty:
             print("Error: No stock data available for top 15.")
             return []
 
-        # 按股票代码分组，取每支股票的最大买超总和
         unique_stocks = (all_stocks_data_df
                          .sort_values("Total", ascending=False)
                          .drop_duplicates(subset="Stock", keep="first"))
-
-        # 取前15名
         top_15 = unique_stocks.nlargest(15, "Total")
         top_15["Rank"] = range(1, len(top_15) + 1)
 
-        print("Debug: Top 15 data generated successfully.")
+        print(f"Top 15 data: {top_15}")  # Debugging
         return top_15.to_dict("records")
-
     except Exception as e:
         print(f"Error fetching top 15 data: {e}")
         return []
-
-
-
 
 # Callback to display main page data
 @app.callback(
@@ -211,6 +248,7 @@ def display_stock_data(stock_code):
         return [], go.Figure()
 
     try:
+        data_dict = load_data()
         # 三大法人買賣超資訊
         monthly_data = pd.DataFrame({
             "Foreign": data_dict["foreign_trading"][stock_code],
@@ -224,16 +262,15 @@ def display_stock_data(stock_code):
         table_data = monthly_data.reset_index().to_dict("records")
 
         # 最近20日主力買超比例
-        volume = data.get("price:成交股數")
+        volume = data.get("price:成交股數")[stock_code].tail(20)
         daily_data = pd.DataFrame({
-            "Foreign": data_dict["foreign_trading"][stock_code],
-            "Investment Trust": data_dict["investment_trust_trading"][stock_code],
-            "Dealer": data_dict["dealer_trading"][stock_code],
-            "Volume": volume[stock_code]
-        }).tail(20)
+            "Foreign": data_dict["foreign_trading"][stock_code].tail(20),
+            "Investment Trust": data_dict["investment_trust_trading"][stock_code].tail(20),
+            "Dealer": data_dict["dealer_trading"][stock_code].tail(20),
+        }).fillna(0)
 
         daily_data["Total"] = daily_data["Foreign"] + daily_data["Investment Trust"] + daily_data["Dealer"]
-        daily_data["Main Force Ratio"] = daily_data["Total"] / daily_data["Volume"] * 100
+        daily_data["Main Force Ratio"] = daily_data["Total"] / volume * 100
 
         fig = go.Figure()
         fig.add_trace(go.Bar(x=daily_data.index, y=daily_data["Main Force Ratio"], name="主力買超比例"))
