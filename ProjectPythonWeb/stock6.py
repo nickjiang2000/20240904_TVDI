@@ -276,4 +276,5 @@ def display_stock_data(stock_code):
 
 # 修改 app.run_server 為適配 Render 的埠號
 if __name__ == "__main__":
+    import os
     app.run_server(debug=False, host="0.0.0.0", port=int(os.environ.get("PORT", 8050)))
