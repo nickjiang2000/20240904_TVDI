@@ -1,7 +1,7 @@
 # 改自能及時從FinLab API下載的stock3.py（由Tom開發）
 # 有解決日期顯示問題；已整合進階功能分析"主力買超比例"至主頁、刪除原顯示之買賣超資訊比較圖表；
 # 已整合進階功能分析"顯示主力買超前15名"
-# 以.csv方式存儲資料，取代.pkl方式；並限制下載3年資料，空間節約成效：從440MB節約為60MB
+# 以.csv方式存儲資料，取代.pkl方式；增加log跟cache功能
 # 微調為上render之版本
 # 後續可考慮微調版面配置；
 
@@ -15,8 +15,11 @@ from datetime import datetime, timedelta
 import finlab
 from finlab import data
 import os
-import gzip
-import shutil
+import logging
+
+# 初始化日誌
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # 初始化環境
 load_dotenv()
@@ -34,35 +37,33 @@ close_price = pd.DataFrame()
 # 加載數據函數
 def load_data():
     try:
-        # 定義最近三年的時間範圍
-        # three_years_ago = (datetime.now() - timedelta(days=3 * 365)).strftime("%Y-%m-%d")
-
+        # 定義存儲數據的函數
         def get_and_save_data(api_key, filename):
             filepath = os.path.join(DATA_DIR, filename)
-            # if os.path.exists(filepath):  # 若本地已存在數據檔案，則直接加載
-            print(f"Loading {filename} from local CSV file.")
-            return pd.read_csv(filepath, index_col=0, parse_dates=True)
-            # else:  # 否則從 API 下載並存為 CSV
-            #     print(f"Downloading {filename} from API.")
-            #     df = data.get(api_key).loc[three_years_ago:]
-            #     df.to_csv(filepath)  # 保存為 CSV
-            #     return df
+            if os.path.exists(filepath):
+                logger.info(f"Loading {filename} from local CSV file.")
+                return pd.read_csv(filepath, index_col=0, parse_dates=True)
+            else:
+                logger.info(f"Downloading {filename} from API (all available data).")
+                df = data.get(api_key)
+                df.to_csv(filepath)
+                return df
 
         # 分別處理每個數據集
         foreign = get_and_save_data(
-            'institutional_investors_trading_summary:外陸資買賣超股數(不含外資自營商)', 
+            'institutional_investors_trading_summary:外陸資買賣超股數(不含外資自營商)',
             "foreign_trading.csv"
         )
         foreign_dealer = get_and_save_data(
-            'institutional_investors_trading_summary:外資自營商買賣超股數', 
+            'institutional_investors_trading_summary:外資自營商買賣超股數',
             "foreign_dealer_trading.csv"
         )
         investment_trust = get_and_save_data(
-            'institutional_investors_trading_summary:投信買賣超股數', 
+            'institutional_investors_trading_summary:投信買賣超股數',
             "investment_trust_trading.csv"
         )
         dealer = get_and_save_data(
-            'institutional_investors_trading_summary:自營商買賣超股數(自行買賣)', 
+            'institutional_investors_trading_summary:自營商買賣超股數(自行買賣)',
             "dealer_trading.csv"
         )
 
@@ -80,9 +81,8 @@ def load_data():
             "dealer_trading": dealer.fillna(0),
         }
     except Exception as e:
-        print(f"Error loading data: {e}")
+        logger.error(f"Error loading data: {e}", exc_info=True)
         return {}
-
 
 # Load stock list from Excel
 def get_stock_list_from_excel():
@@ -90,31 +90,27 @@ def get_stock_list_from_excel():
         df = pd.read_excel("./data/tw_stock_topics.xlsx")
         return [f"{row['stock_no']} {row['stock_name']}" for _, row in df.iterrows()]
     except Exception as e:
-        print(f"Error reading stock list: {e}")
+        logger.error(f"Error reading stock list: {e}", exc_info=True)
         return []
 
 stock_list = get_stock_list_from_excel()
 
 # Dash App
 app = dash.Dash(__name__, suppress_callback_exceptions=True)
-server = app.server
 app.title = "Stock Analysis Dashboard"
 
 # Main page layout
 main_page_layout = html.Div([
     html.Div([
         html.H2("國內外投信股票買賣查詢系統", style={"textAlign": "center"}),
-
         html.Label("選擇股票："),
         dcc.Dropdown(
             id='stock-dropdown',
             options=[{"label": stock, "value": stock.split()[0]} for stock in stock_list],
-            value="2330",  # 預設選擇台積電
+            value="2330",
         ),
-
         html.Button("顯示主力買超前15名", id="show-top15-button", n_clicks=0, style={"marginTop": "20px"}),
     ], style={"width": "30%", "display": "inline-block", "verticalAlign": "top", "padding": "20px"}),
-
     html.Div([
         html.H3("三大法人買賣超資訊", style={"textAlign": "center"}),
         dash_table.DataTable(
@@ -128,7 +124,6 @@ main_page_layout = html.Div([
             style_table={"overflowX": "auto", "overflowY": "auto", "height": "300px"},
             style_cell={"textAlign": "center"},
         ),
-
         html.H3("最近20日主力買超比例", style={"textAlign": "center"}),
         dcc.Graph(id="main-force-plot", style={"height": "400px"})
     ], style={"width": "65%", "display": "inline-block", "padding": "20px"})
@@ -187,18 +182,15 @@ def display_page(pathname):
 def get_top_15_data(pathname):
     if pathname != "/top15":
         return []
-
     try:
         all_stocks_data = []
-        data_dict = load_data()  # Dynamically load data with limited date range
-
+        data_dict = load_data()
         for stock in stock_list:
             stock_code = stock.split()[0]
             try:
                 foreign = data_dict["foreign_trading"].get(stock_code, pd.Series()).tail(20).sum()
                 trust = data_dict["investment_trust_trading"].get(stock_code, pd.Series()).tail(20).sum()
                 dealer = data_dict["dealer_trading"].get(stock_code, pd.Series()).tail(20).sum()
-
                 all_stocks_data.append({
                     "Stock": stock_code,
                     "Foreign": foreign,
@@ -207,26 +199,23 @@ def get_top_15_data(pathname):
                     "Total": foreign + trust + dealer
                 })
             except Exception as e:
-                print(f"Error processing stock {stock_code}: {e}")
+                logger.error(f"Error processing stock {stock_code}: {e}", exc_info=True)
                 continue
 
-        # Convert to DataFrame and deduplicate
         all_stocks_data_df = pd.DataFrame(all_stocks_data)
-
         if all_stocks_data_df.empty:
-            print("Error: No stock data available for top 15.")
+            logger.error("Error: No stock data available for top 15.")
             return []
 
         unique_stocks = (all_stocks_data_df
-                         .sort_values("Total", ascending=False)
-                         .drop_duplicates(subset="Stock", keep="first"))
+            .sort_values("Total", ascending=False)
+            .drop_duplicates(subset="Stock", keep="first"))
         top_15 = unique_stocks.nlargest(15, "Total")
         top_15["Rank"] = range(1, len(top_15) + 1)
-
-        print(f"Top 15 data: {top_15}")  # Debugging
+        logger.info(f"Top 15 data: {top_15}")
         return top_15.to_dict("records")
     except Exception as e:
-        print(f"Error fetching top 15 data: {e}")
+        logger.error(f"Error fetching top 15 data: {e}", exc_info=True)
         return []
 
 # Callback to display main page data
@@ -237,19 +226,18 @@ def get_top_15_data(pathname):
 def display_stock_data(stock_code):
     if not stock_code:
         return [], go.Figure()
-
     try:
         data_dict = load_data()
+        
         # 三大法人買賣超資訊
         monthly_data = pd.DataFrame({
             "Foreign": data_dict["foreign_trading"][stock_code],
             "Investment Trust": data_dict["investment_trust_trading"][stock_code],
             "Dealer": data_dict["dealer_trading"][stock_code],
         }).fillna(0)
-
         monthly_data = monthly_data.resample("M").sum()
         monthly_data["Month"] = monthly_data.index.strftime("%Y-%m")
-        monthly_data = monthly_data.iloc[::-1]  # 資料反向排序，最新資料在上
+        monthly_data = monthly_data.iloc[::-1]
         table_data = monthly_data.reset_index().to_dict("records")
 
         # 最近20日主力買超比例
@@ -259,7 +247,6 @@ def display_stock_data(stock_code):
             "Investment Trust": data_dict["investment_trust_trading"][stock_code].tail(20),
             "Dealer": data_dict["dealer_trading"][stock_code].tail(20),
         }).fillna(0)
-
         daily_data["Total"] = daily_data["Foreign"] + daily_data["Investment Trust"] + daily_data["Dealer"]
         daily_data["Main Force Ratio"] = daily_data["Total"] / volume * 100
 
@@ -272,12 +259,9 @@ def display_stock_data(stock_code):
         )
 
         return table_data, fig
-
     except Exception as e:
-        print(f"Error processing stock data: {e}")
+        logger.error(f"Error processing stock data: {e}", exc_info=True)
         return [], go.Figure()
 
-# 修改 app.run_server 為適配 Render 的埠號
 if __name__ == "__main__":
-    import os
     app.run_server(debug=False, host="0.0.0.0", port=int(os.environ.get("PORT", 8050)))
