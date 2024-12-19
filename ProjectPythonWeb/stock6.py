@@ -95,6 +95,7 @@ stock_list = get_stock_list_from_excel()
 
 # Dash App
 app = dash.Dash(__name__, suppress_callback_exceptions=True)
+server = app.server
 app.title = "Stock Analysis Dashboard"
 
 # Main page layout
