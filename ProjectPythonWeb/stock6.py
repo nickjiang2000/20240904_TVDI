@@ -8,6 +8,7 @@
 from dotenv import load_dotenv
 import dash
 from dash import dcc, html, Input, Output, dash_table
+from dash import Dash
 import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
@@ -18,7 +19,6 @@ import gzip
 import shutil
 
 # 初始化環境
-os.system('cls')
 load_dotenv()
 
 # 使用 Render 的環境變數
