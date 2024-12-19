@@ -1,7 +1,7 @@
 # 改自能及時從FinLab API下載的stock3.py（由Tom開發）
 # 有解決日期顯示問題；已整合進階功能分析"主力買超比例"至主頁、刪除原顯示之買賣超資訊比較圖表；
 # 已整合進階功能分析"顯示主力買超前15名"
-# 以.csv方式存儲資料，取代.pkl方式；空間節約成效：從440MB節約為150MB
+# 以.csv方式存儲資料，取代.pkl方式；並限制下載3年資料，空間節約成效：從440MB節約為60MB
 # 微調為上render之版本
 # 後續可考慮微調版面配置；
 
@@ -34,15 +34,17 @@ close_price = pd.DataFrame()
 # 加載數據函數
 def load_data():
     try:
-        # 定義存儲數據的函數
+        # 定義最近三年的時間範圍
+        three_years_ago = (datetime.now() - timedelta(days=3 * 365)).strftime("%Y-%m-%d")
+
         def get_and_save_data(api_key, filename):
             filepath = os.path.join(DATA_DIR, filename)
             if os.path.exists(filepath):  # 若本地已存在數據檔案，則直接加載
                 print(f"Loading {filename} from local CSV file.")
                 return pd.read_csv(filepath, index_col=0, parse_dates=True)
-            else:  # 否則從 API 下載並保存為 CSV
-                print(f"Downloading {filename} from API (all available data).")
-                df = data.get(api_key)  # 下載所有可用數據，無時間限制
+            else:  # 否則從 API 下載並存為 CSV
+                print(f"Downloading {filename} from API.")
+                df = data.get(api_key).loc[three_years_ago:]
                 df.to_csv(filepath)  # 保存為 CSV
                 return df
 
