@@ -1,7 +1,7 @@
 # 改自能及時從FinLab API下載的stock3.py（由Tom開發）
 # 有解決日期顯示問題；已整合進階功能分析"主力買超比例"至主頁、刪除原顯示之買賣超資訊比較圖表；
 # 已整合進階功能分析"顯示主力買超前15名"
-# 已將資料下載一年改為三個月，便於佈署上雲
+# 以.csv方式存儲資料，取代.pkl方式；空間節約成效：從440MB節約為150MB
 # 後續可考慮微調版面配置；
 
 from dotenv import load_dotenv
@@ -16,83 +16,68 @@ import os
 import gzip
 import shutil
 
-# Initialize environment
+# 初始化環境
 os.system('cls')
 load_dotenv()
 finlab.login(os.getenv('FINLAB_API_KEY'))
 
-# Set dynamic storage path
-storage_path = "D:\\pickle"
-os.makedirs(storage_path, exist_ok=True)  # Ensure the directory exists
-data.set_storage(data.FileStorage(path=storage_path))
+# 定義存儲路徑
+DATA_DIR = "./data"
+os.makedirs(DATA_DIR, exist_ok=True)
 
-# Compress pickle files to reduce space
-def compress_pickle_files(directory):
+# 全局變量
+close_price = pd.DataFrame()
+
+# 加載數據函數
+def load_data():
     try:
-        for filename in os.listdir(directory):
-            if filename.endswith(".pkl"):
-                file_path = os.path.join(directory, filename)
-                compressed_path = file_path + ".gz"
+        # 定義存儲數據的函數
+        def get_and_save_data(api_key, filename):
+            filepath = os.path.join(DATA_DIR, filename)
+            if os.path.exists(filepath):  # 若本地已存在數據檔案，則直接加載
+                print(f"Loading {filename} from local CSV file.")
+                return pd.read_csv(filepath, index_col=0, parse_dates=True)
+            else:  # 否則從 API 下載並保存為 CSV
+                print(f"Downloading {filename} from API (all available data).")
+                df = data.get(api_key)  # 下載所有可用數據，無時間限制
+                df.to_csv(filepath)  # 保存為 CSV
+                return df
 
-                # Skip if already compressed
-                if os.path.exists(compressed_path):
-                    continue
+        # 分別處理每個數據集
+        foreign = get_and_save_data(
+            'institutional_investors_trading_summary:外陸資買賣超股數(不含外資自營商)', 
+            "foreign_trading.csv"
+        )
+        foreign_dealer = get_and_save_data(
+            'institutional_investors_trading_summary:外資自營商買賣超股數', 
+            "foreign_dealer_trading.csv"
+        )
+        investment_trust = get_and_save_data(
+            'institutional_investors_trading_summary:投信買賣超股數', 
+            "investment_trust_trading.csv"
+        )
+        dealer = get_and_save_data(
+            'institutional_investors_trading_summary:自營商買賣超股數(自行買賣)', 
+            "dealer_trading.csv"
+        )
 
-                with open(file_path, "rb") as f_in:
-                    with gzip.open(compressed_path, "wb") as f_out:
-                        shutil.copyfileobj(f_in, f_out)
-                
-                # Remove the original file after compression
-                os.remove(file_path)
-        print(f"Pickle files compressed in {directory}")
-    except Exception as e:
-        print(f"Error during compression: {e}")
-
-# Automatically clean up old compressed files
-def clean_old_compressed_files(directory, days=7):
-    try:
-        now = datetime.now()
-        for filename in os.listdir(directory):
-            if filename.endswith(".gz"):
-                file_path = os.path.join(directory, filename)
-                file_time = datetime.fromtimestamp(os.path.getmtime(file_path))
-
-                # Delete files older than the threshold
-                if (now - file_time).days > days:
-                    os.remove(file_path)
-        print(f"Old compressed files cleaned in {directory}")
-    except Exception as e:
-        print(f"Error during cleanup: {e}")
-
-# Load data using finlab API with limited time range
-def load_data(start_date=None, end_date=None):
-    try:
-        # Limit to the last 90 days to reduce data size
-        end_date = datetime.now() if end_date is None else end_date
-        start_date = end_date - timedelta(days=90) if start_date is None else start_date
-
-        foreign = data.get('institutional_investors_trading_summary:外陸資買賣超股數(不含外資自營商)').loc[start_date:end_date]
-        foreign_dealer = data.get('institutional_investors_trading_summary:外資自營商買賣超股數').loc[start_date:end_date]
-        investment_trust = data.get('institutional_investors_trading_summary:投信買賣超股數').loc[start_date:end_date]
-        dealer = data.get('institutional_investors_trading_summary:自營商買賣超股數(自行買賣)').loc[start_date:end_date]
-
+        # 合併外資與外資自營商數據
         foreign_total = foreign.fillna(0) + foreign_dealer.fillna(0)
-        close_price = data.get("price:收盤價").loc[start_date:end_date]
 
-        print("Data successfully loaded for the last 90 days.")
+        # 處理收盤價數據
+        global close_price
+        close_price = get_and_save_data("price:收盤價", "close_price.csv")
+
+        # 返回處理後的數據字典
         return {
             "foreign_trading": foreign_total,
             "investment_trust_trading": investment_trust.fillna(0),
             "dealer_trading": dealer.fillna(0),
-            "close_price": close_price
         }
     except Exception as e:
         print(f"Error loading data: {e}")
         return {}
 
-# Call compression and cleanup functions
-compress_pickle_files(storage_path)
-clean_old_compressed_files(storage_path)
 
 # Load stock list from Excel
 def get_stock_list_from_excel():

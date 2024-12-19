@@ -16,3 +16,4 @@ ipython>=8.12.0
 
 dash
 plotly
+gunicorn==21.2.0
