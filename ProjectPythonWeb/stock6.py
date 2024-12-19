@@ -2,7 +2,7 @@
 # 有解決日期顯示問題；已整合進階功能分析"主力買超比例"至主頁、刪除原顯示之買賣超資訊比較圖表；
 # 已整合進階功能分析"顯示主力買超前15名"
 # 以.csv方式存儲資料，取代.pkl方式；增加log跟cache功能
-# 微調為上render之版本
+# 微調為上render之版本，可上線但仍無法顯示資料
 # 後續可考慮微調版面配置；
 
 from dotenv import load_dotenv
@@ -37,19 +37,21 @@ close_price = pd.DataFrame()
 # 加載數據函數
 def load_data():
     try:
-        # 定義存儲數據的函數
         def get_and_save_data(api_key, filename):
             filepath = os.path.join(DATA_DIR, filename)
-            if os.path.exists(filepath):
-                logger.info(f"Loading {filename} from local CSV file.")
-                return pd.read_csv(filepath, index_col=0, parse_dates=True)
-            else:
-                logger.info(f"Downloading {filename} from API (all available data).")
-                df = data.get(api_key)
-                df.to_csv(filepath)
-                return df
+            
+            # 計算三年前的日期
+            three_years_ago = pd.Timestamp.now() - pd.DateOffset(years=3)
+            
+            # 從 API 下載數據
+            print(f"Downloading {filename} from API (last 3 years of data).")
+            df = data.get(api_key, start_date=three_years_ago)
+            
+            # 保存為 CSV，只包含最近三年的數據
+            df.to_csv(filepath)
+            
+            return df
 
-        # 分別處理每個數據集
         foreign = get_and_save_data(
             'institutional_investors_trading_summary:外陸資買賣超股數(不含外資自營商)',
             "foreign_trading.csv"
@@ -81,8 +83,9 @@ def load_data():
             "dealer_trading": dealer.fillna(0),
         }
     except Exception as e:
-        logger.error(f"Error loading data: {e}", exc_info=True)
+        print(f"Error loading data: {e}")
         return {}
+
 
 # Load stock list from Excel
 def get_stock_list_from_excel():
