@@ -35,18 +35,18 @@ close_price = pd.DataFrame()
 def load_data():
     try:
         # 定義最近三年的時間範圍
-        three_years_ago = (datetime.now() - timedelta(days=3 * 365)).strftime("%Y-%m-%d")
+        # three_years_ago = (datetime.now() - timedelta(days=3 * 365)).strftime("%Y-%m-%d")
 
         def get_and_save_data(api_key, filename):
             filepath = os.path.join(DATA_DIR, filename)
-            if os.path.exists(filepath):  # 若本地已存在數據檔案，則直接加載
-                print(f"Loading {filename} from local CSV file.")
-                return pd.read_csv(filepath, index_col=0, parse_dates=True)
-            else:  # 否則從 API 下載並存為 CSV
-                print(f"Downloading {filename} from API.")
-                df = data.get(api_key).loc[three_years_ago:]
-                df.to_csv(filepath)  # 保存為 CSV
-                return df
+            # if os.path.exists(filepath):  # 若本地已存在數據檔案，則直接加載
+            print(f"Loading {filename} from local CSV file.")
+            return pd.read_csv(filepath, index_col=0, parse_dates=True)
+            # else:  # 否則從 API 下載並存為 CSV
+            #     print(f"Downloading {filename} from API.")
+            #     df = data.get(api_key).loc[three_years_ago:]
+            #     df.to_csv(filepath)  # 保存為 CSV
+            #     return df
 
         # 分別處理每個數據集
         foreign = get_and_save_data(
