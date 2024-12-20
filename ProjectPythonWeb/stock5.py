@@ -17,7 +17,6 @@ import gzip
 import shutil
 
 # 初始化環境
-os.system('cls')
 load_dotenv()
 finlab.login(os.getenv('FINLAB_API_KEY'))
 

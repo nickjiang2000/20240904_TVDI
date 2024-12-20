@@ -14,7 +14,6 @@ from finlab import data
 import os
 
 # Initialize environment
-os.system('cls')
 load_dotenv()
 finlab.login(os.getenv('FINLAB_API_KEY'))
 data.set_storage(data.FileStorage(path="D:\pickle"))
